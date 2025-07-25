@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bob Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    #result { font-size: 24px; font-weight: bold; margin-top: 20px; }
+    #bobImage { max-width: 200px; margin-top: 20px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>Bob Approved Scanner</h1>
+  <div id="reader" style="width:300px;"></div>
+  <div id="result"></div>
+  <img id="bobImage" src="" alt="">
+
+  <script>
+    const badStuff = [
+      "seed oil", "canola oil", "vegetable oil", "refined sugar", "corn syrup",
+      "aspartame", "preservative", "bha", "bht", "sodium benzoate", "gmo",
+      "artificial flavor", "natural flavor", "pesticide", "chemical", 
+      "artificial color", "red 40", "yellow 5", "yellow 6", "blue 1",
+      "ultra processed", "toxin", "fragrance", "sucralose", "acesulfame"
+    ];
+
+    function checkIngredients(ingredients) {
+      const lower = ingredients.toLowerCase();
+      const isOrganic = lower.includes("organic");
+      const hasBad = badStuff.some(b => lower.includes(b));
+      return hasBad && !isOrganic;
+    }
+
+    function showResult(approved) {
+      const result = document.getElementById("result");
+      const image = document.getElementById("bobImage");
+      if (approved) {
+        result.textContent = "✅ Bob Approved";
+        result.style.color = "green";
+        image.src = "happy.png";
+      } else {
+        result.textContent = "❌ Bob Not Approved";
+        result.style.color = "red";
+        image.src = "sad.png";
+      }
+      image.style.display = "block";
+    }
+
+    function onScanSuccess(decodedText) {
+      fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 1 && data.product.ingredients_text) {
+            const approved = checkIngredients(data.product.ingredients_text);
+            showResult(approved);
+          } else {
+            document.getElementById("result").textContent = "Product not found.";
+          }
+        })
+        .catch(() => {
+          document.getElementById("result").textContent = "Error fetching product.";
+        });
+    }
+
+    new Html5Qrcode("reader").start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 250 },
+      onScanSuccess
+    );
+  </script>
+</body>
+</html>
